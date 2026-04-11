@@ -72,6 +72,13 @@ void            pipeclose(struct pipe*, int);
 int             piperead(struct pipe*, uint64, int);
 int             pipewrite(struct pipe*, uint64, int);
 
+// ipc.c
+int             msgbox_create_impl(char*);
+int             msgbox_send_impl(char*, char*, int);
+int             msgbox_recv_impl(char*, int);
+int             msgbox_destroy_impl(void);
+int             msgbox_count_impl(void);
+
 // printf.c
 int             printf(char*, ...) __attribute__ ((format (printf, 1, 2)));
 void            panic(char*) __attribute__((noreturn));
