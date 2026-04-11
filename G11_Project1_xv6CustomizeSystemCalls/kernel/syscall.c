@@ -108,6 +108,12 @@ extern uint64 sys_thread_join(void);
 extern uint64 sys_shmcreate(void);
 extern uint64 sys_shmat(void);
 extern uint64 sys_shmdt(void);
+extern uint64 sys_msgbox_create(void);
+extern uint64 sys_msgbox_send(void);
+extern uint64 sys_msgbox_recv(void);
+extern uint64 sys_msgbox_destroy(void);
+extern uint64 sys_msgbox_count(void);
+
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
 static uint64 (*syscalls[])(void) = {
@@ -139,6 +145,11 @@ static uint64 (*syscalls[])(void) = {
 [SYS_shmcreate] sys_shmcreate,
 [SYS_shmat]    sys_shmat,
 [SYS_shmdt]    sys_shmdt,
+[SYS_msgbox_create]  sys_msgbox_create,
+[SYS_msgbox_send]    sys_msgbox_send,
+[SYS_msgbox_recv]    sys_msgbox_recv,
+[SYS_msgbox_destroy] sys_msgbox_destroy,
+[SYS_msgbox_count]   sys_msgbox_count,
 };
 
 void

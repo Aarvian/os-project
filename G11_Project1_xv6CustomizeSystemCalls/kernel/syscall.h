@@ -27,3 +27,8 @@
 #define SYS_shmcreate 26
 #define SYS_shmat     27
 #define SYS_shmdt     28
+#define SYS_msgbox_create  29
+#define SYS_msgbox_send    30
+#define SYS_msgbox_recv    31
+#define SYS_msgbox_destroy 32
+#define SYS_msgbox_count   33
