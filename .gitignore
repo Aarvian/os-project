@@ -1,4 +1,2 @@
-*
-!.gitignore
-!G11_Project1_xv6CustomizeSystemCalls/
-!G11_Project1_xv6CustomizeSystemCalls/**
+G11_Project2_P3_Multithreading/error_log.exe
+.vscode/

@@ -1,0 +1,4 @@
+[2026-04-13 16:09:07] OP=READ       FILE=test_files/sample.txt     STATUS=SUCCESS
+[2026-04-13 16:09:07] OP=READ       FILE=test_files/missing.txt    STATUS=FAILED - file not found
+[2026-04-13 16:09:07] OP=WRITE      FILE=test_files/sample.txt     STATUS=SUCCESS
+[2026-04-13 16:09:07] OP=DELETE     FILE=test_files/ghost.txt      STATUS=FAILED - file not found
