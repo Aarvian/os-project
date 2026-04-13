@@ -18,6 +18,7 @@ OBJS = \
   $K/trap.o \
   $K/syscall.o \
   $K/sysproc.o \
+  $K/sysproc_thread.o \
   $K/bio.o \
   $K/fs.o \
   $K/log.o \
@@ -53,7 +54,7 @@ TOOLPREFIX := $(shell if riscv64-unknown-elf-objdump -i 2>&1 | grep 'elf64-big' 
 endif
 
 QEMU = qemu-system-riscv64
-MIN_QEMU_VERSION = 7.2
+MIN_QEMU_VERSION = 4.2
 
 CC = $(TOOLPREFIX)gcc
 AS = $(TOOLPREFIX)gas
@@ -61,7 +62,7 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-CFLAGS = -Wall -Werror -Wno-unknown-attributes -O -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -march=rv64gc
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
@@ -145,8 +146,7 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
-	$U/_demo\
-
+	$U/_threademo
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
 
@@ -167,7 +167,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 ifndef CPUS
-CPUS := 3
+CPUS := 1
 endif
 
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic

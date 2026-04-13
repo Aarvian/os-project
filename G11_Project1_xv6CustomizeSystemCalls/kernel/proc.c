@@ -149,6 +149,14 @@ found:
   return p;
 }
 
+// Allocate a process slot for syscall helpers.
+// Returns with p->lock held, like allocproc().
+struct proc*
+kallocproc(void)
+{
+  return allocproc();
+}
+
 // free a proc structure and the data hanging from it,
 // including user pages.
 // p->lock must be held.
@@ -169,6 +177,14 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+}
+
+// Free a process slot for syscall helpers.
+// Caller must hold p->lock, like freeproc().
+void
+kfreeproc(struct proc *p)
+{
+  freeproc(p);
 }
 
 // Create a user page table for a given process, with no user memory,

@@ -81,6 +81,8 @@ void            printfinit(void);
 int             cpuid(void);
 void            kexit(int);
 int             kfork(void);
+struct proc*    kallocproc(void);
+void            kfreeproc(struct proc*);
 int             growproc(int);
 void            proc_mapstacks(pagetable_t);
 pagetable_t     proc_pagetable(struct proc *);

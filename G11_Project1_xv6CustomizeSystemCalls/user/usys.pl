@@ -42,5 +42,5 @@ entry("getpid");
 entry("sbrk");
 entry("pause");
 entry("uptime");
-entry("getprocinfo");
-entry("setpriority");
+entry("thread_create"); 
+entry("thread_join");

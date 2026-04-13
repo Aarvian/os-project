@@ -1,0 +1,4 @@
+*
+!.gitignore
+!G11_Project1_xv6CustomizeSystemCalls/
+!G11_Project1_xv6CustomizeSystemCalls/**
