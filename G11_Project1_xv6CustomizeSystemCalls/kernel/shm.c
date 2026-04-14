@@ -83,3 +83,44 @@ uint64 sys_shmat(void) {
 
   return va; // Return the virtual address where it is attached
 }
+
+uint64 sys_shmdt(void) {
+  int shmid;
+  argint(0, &shmid);
+
+  if (shmid < 0 || shmid >= SHM_MAX) return -1;
+
+  acquire(&shm_lock);
+  if (shm_table[shmid].pa == 0) {
+    release(&shm_lock);
+    return -1;
+  }
+
+  struct proc *p = myproc();
+  uint64 va = 0;
+  // Search for the virtual address where the shared page is mapped
+  for (uint64 a = 0; a < p->sz; a += PGSIZE) {
+    pte_t *pte = walk(p->pagetable, a, 0);
+    if (pte != 0 && (*pte & PTE_V)) {
+      if (PTE2PA(*pte) == shm_table[shmid].pa) {
+        va = a;
+        break;
+      }
+    }
+  }
+
+  if (va != 0) {
+    uvmunmap(p->pagetable, va, 1, 0); // Unmap without freeing the underlying physical memory
+  }
+
+  shm_table[shmid].ref_count--;
+  if (shm_table[shmid].ref_count <= 0) {
+    kfree((void*)shm_table[shmid].pa); // Free physical page when no process is attached
+    shm_table[shmid].pa = 0;
+    shm_table[shmid].key = 0;
+    shm_table[shmid].ref_count = 0;
+  }
+
+  release(&shm_lock);
+  return 0;
+}
