@@ -111,14 +111,7 @@ uint64 sys_shmdt(void) {
 
   if (va != 0) {
     uvmunmap(p->pagetable, va, 1, 0); // Unmap without freeing the underlying physical memory
-  }
-
-  shm_table[shmid].ref_count--;
-  if (shm_table[shmid].ref_count <= 0) {
-    kfree((void*)shm_table[shmid].pa); // Free physical page when no process is attached
-    shm_table[shmid].pa = 0;
-    shm_table[shmid].key = 0;
-    shm_table[shmid].ref_count = 0;
+    shm_table[shmid].ref_count--;
   }
 
   release(&shm_lock);
