@@ -3,161 +3,113 @@
 #include <string.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <errno.h>
 #include <unistd.h>
-#include <time.h>
 
-#define LOGFILE     "logs/operations.log"
-#define TESTFILE    "test_files/sample.txt"
-#define MAX_READERS 3
+// Semaphores for synchronization
+sem_t log_sem;
+sem_t file_sem;
 
-sem_t sem_log;    /* binary: one logger at a time          */
-sem_t sem_write;  /* binary: exclusive write/delete access */
-sem_t sem_read;   /* counting: up to MAX_READERS at once   */
-
-/* Feature 8: Logging */
-void log_op(const char *operation, const char *filename, const char *status) {
-    sem_wait(&sem_log);
-
-    time_t now = time(NULL);
-    struct tm *t = localtime(&now);
-    char timestamp[64];
-    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", t);
-
-    FILE *f = fopen(LOGFILE, "a");
-    if (f) {
-        fprintf(f, "[%s] OP=%-10s FILE=%-25s STATUS=%s\n",
-                timestamp, operation, filename, status);
+// Simple log function to write to logs/operations.log
+void write_to_log(char *op, char *file, char *status) {
+    sem_wait(&log_sem);
+    
+    FILE *f = fopen("logs/operations.log", "a");
+    if (f != NULL) {
+        fprintf(f, "[LOG] Operation: %s | Target: %s | Status: %s\n", op, file, status);
         fclose(f);
+    }
+    
+    // Also print to console so we see it happening
+    printf(">> Logged: %s on %s (%s)\n", op, file, status);
+    
+    sem_post(&log_sem);
+}
+
+// Thread function for reading
+void *read_func(void *arg) {
+    char *fname = (char *)arg;
+    sem_wait(&file_sem);
+
+    FILE *f = fopen(fname, "r");
+    if (f == NULL) {
+        write_to_log("READ", fname, "FAILED: File not found");
     } else {
-        fprintf(stderr, "[LOG ERROR] Could not open log file: %s\n", strerror(errno));
-    }
-
-    printf("[LOG] %-10s | %-25s | %s\n", operation, filename, status);
-    sem_post(&sem_log);
-}
-
-/* Feature 7: Error Handling */
-void *thread_read_file(void *arg) {
-    char *filename = (char *)arg;
-    printf("\n[Thread] Trying to READ '%s'\n", filename);
-
-    sem_wait(&sem_read);
-
-    FILE *f = fopen(filename, "r");
-    if (f == NULL) {
-        printf("[ERROR] Cannot open '%s' — %s\n", filename, strerror(errno));
-        log_op("READ", filename, "FAILED - file not found");
-        sem_post(&sem_read);
-        return NULL;
-    }
-
-    char buffer[256];
-    if (fgets(buffer, sizeof(buffer), f) == NULL) {
-        printf("[ERROR] File '%s' is empty\n", filename);
-        log_op("READ", filename, "FAILED - file empty");
+        char line[100];
+        if (fgets(line, sizeof(line), f)) {
+            printf("Thread read: %s", line);
+            write_to_log("READ", fname, "SUCCESS");
+        } else {
+            write_to_log("READ", fname, "FAILED: Empty");
+        }
         fclose(f);
-        sem_post(&sem_read);
-        return NULL;
     }
 
-    printf("[Thread] Read from '%s': %s", filename, buffer);
-    log_op("READ", filename, "SUCCESS");
-    fclose(f);
-    sem_post(&sem_read);
+    sem_post(&file_sem);
+    free(fname); // Clean up the strdup memory
     return NULL;
 }
 
-void *thread_write_file(void *arg) {
-    char *filename = (char *)arg;
-    printf("\n[Thread] Trying to WRITE to '%s'\n", filename);
+// Thread function for writing
+void *write_func(void *arg) {
+    char *fname = (char *)arg;
+    sem_wait(&file_sem);
 
-    sem_wait(&sem_write);
-
-    FILE *f = fopen(filename, "a");
+    FILE *f = fopen(fname, "a");
     if (f == NULL) {
-        printf("[ERROR] Cannot open '%s' for writing — %s\n", filename, strerror(errno));
-        log_op("WRITE", filename, "FAILED - cannot open");
-        sem_post(&sem_write);
-        return NULL;
+        write_to_log("WRITE", fname, "FAILED: Permission denied");
+    } else {
+        fprintf(f, "New entry from thread.\n");
+        write_to_log("WRITE", fname, "SUCCESS");
+        fclose(f);
     }
 
-    fprintf(f, "Thread wrote this line.\n");
-    printf("[Thread] Wrote to '%s' successfully\n", filename);
-    log_op("WRITE", filename, "SUCCESS");
-    fclose(f);
-    sem_post(&sem_write);
-    return NULL;
-}
-
-void *thread_delete_file(void *arg) {
-    char *filename = (char *)arg;
-    printf("\n[Thread] Trying to DELETE '%s'\n", filename);
-
-    sem_wait(&sem_write);
-
-    if (remove(filename) != 0) {
-        printf("[ERROR] Cannot delete '%s' — %s\n", filename, strerror(errno));
-        log_op("DELETE", filename, "FAILED - file not found");
-        sem_post(&sem_write);
-        return NULL;
-    }
-
-    printf("[Thread] Deleted '%s' successfully\n", filename);
-    log_op("DELETE", filename, "SUCCESS");
-    sem_post(&sem_write);
+    sem_post(&file_sem);
+    free(fname);
     return NULL;
 }
 
 int main() {
-    pthread_t t1, t2, t3, t4;
+    int choice;
+    char name_input[100];
+    char path[150];
+    pthread_t thread_id;
 
-    if (sem_init(&sem_log,   0, 1)           != 0 ||
-        sem_init(&sem_write, 0, 1)           != 0 ||
-        sem_init(&sem_read,  0, MAX_READERS) != 0) {
-        fprintf(stderr, "[FATAL] Semaphore init failed: %s\n", strerror(errno));
-        return EXIT_FAILURE;
+    sem_init(&log_sem, 0, 1);
+    sem_init(&file_sem, 0, 1);
+
+    printf("--- File Operation System ---\n");
+
+    while (1) {
+        printf("\n1. Read a file (from test_files/)\n");
+        printf("2. Write to a file (in test_files/)\n");
+        printf("3. Exit\n");
+        printf("Enter choice: ");
+        scanf("%d", &choice);
+
+        if (choice == 3) break;
+
+        printf("Enter filename (e.g., sample.txt): ");
+        scanf("%s", name_input);
+
+        // Combine folder name with user input
+        sprintf(path, "test_files/%s", name_input);
+        char *pass_path = strdup(path);
+
+        if (choice == 1) {
+            pthread_create(&thread_id, NULL, read_func, pass_path);
+            pthread_join(thread_id, NULL);
+        } else if (choice == 2) {
+            pthread_create(&thread_id, NULL, write_func, pass_path);
+            pthread_join(thread_id, NULL);
+        } else {
+            printf("Invalid option.\n");
+            free(pass_path);
+        }
     }
 
-    system("mkdir -p logs test_files");
+    sem_destroy(&log_sem);
+    sem_destroy(&file_sem);
+    printf("Goodbye!\n");
 
-    FILE *f = fopen(TESTFILE, "w");
-    if (f) {
-        fprintf(f, "Hello from the test file.\n");
-        fclose(f);
-    } else {
-        fprintf(stderr, "[FATAL] Could not create test file: %s\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
-
-    printf("======================================\n");
-    printf("  Feature : Error Handling\n");
-    printf("  Feature : Logging\n");
-    printf("  Sync      : Semaphores (POSIX)\n");
-    printf("======================================\n");
-
-    printf("\n-- Test 1: Read an existing file --\n");
-    pthread_create(&t1, NULL, thread_read_file, TESTFILE);
-    pthread_join(t1, NULL);
-
-    printf("\n-- Test 2: Read a missing file --\n");
-    pthread_create(&t2, NULL, thread_read_file, "test_files/missing.txt");
-    pthread_join(t2, NULL);
-
-    printf("\n-- Test 3: Write to a file --\n");
-    pthread_create(&t3, NULL, thread_write_file, TESTFILE);
-    pthread_join(t3, NULL);
-
-    printf("\n-- Test 4: Delete a missing file --\n");
-    pthread_create(&t4, NULL, thread_delete_file, "test_files/ghost.txt");
-    pthread_join(t4, NULL);
-
-    sem_destroy(&sem_log);
-    sem_destroy(&sem_write);
-    sem_destroy(&sem_read);
-
-    printf("\n======================================\n");
-    printf("Done. Check logs/operations.log\n");
-    printf("======================================\n");
-    return EXIT_SUCCESS;
+    return 0;
 }
